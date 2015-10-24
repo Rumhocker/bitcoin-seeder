@@ -20,6 +20,7 @@ public:
   int nThreads;
   int nPort;
   int nDnsThreads;
+  int fDaemon;
   int fUseTestNet;
   int fWipeBan;
   int fWipeIgnore;
@@ -30,7 +31,7 @@ public:
   const char *ipv4_proxy;
   const char *ipv6_proxy;
 
-  CDnsSeedOpts() : nThreads(96), nDnsThreads(4), nPort(53), mbox(NULL), ns(NULL), host(NULL), tor(NULL), fUseTestNet(false), fWipeBan(false), fWipeIgnore(false), ipv4_proxy(NULL), ipv6_proxy(NULL) {}
+  CDnsSeedOpts() : nThreads(96), nDnsThreads(4), nPort(53), mbox(NULL), ns(NULL), host(NULL), tor(NULL), fDaemon(false), fUseTestNet(false), fWipeBan(false), fWipeIgnore(false), ipv4_proxy(NULL), ipv6_proxy(NULL) {}
 
   void ParseCommandLine(int argc, char **argv) {
     static const char *help = "eMark-seeder\n"
@@ -46,6 +47,7 @@ public:
                               "-o <ip:port>    Tor proxy IP/Port\n"
                               "-i <ip:port>    IPV4 SOCKS5 proxy IP/Port\n"
                               "-k <ip:port>    IPV6 SOCKS5 proxy IP/Port\n"
+                              "--daemon        Run as a daemon\n"
                               "--testnet       Use testnet\n"
                               "--wipeban       Wipe list of banned nodes\n"
                               "--wipeignore    Wipe list of ignored nodes\n"
@@ -64,6 +66,7 @@ public:
         {"onion", required_argument, 0, 'o'},
         {"proxyipv4", required_argument, 0, 'i'},
         {"proxyipv6", required_argument, 0, 'k'},
+        {"daemon", no_argument, &fDaemon, 1},
         {"testnet", no_argument, &fUseTestNet, 1},
         {"wipeban", no_argument, &fWipeBan, 1},
         {"wipeignore", no_argument, &fWipeBan, 1},
@@ -359,7 +362,7 @@ static const string *seeds = mainnet_seeds;
 
 extern "C" void* ThreadSeeder(void*) {
   if (!fTestNet){
-    db.Add(CService("kjy2eqzk4zwi5zd3.onion", 5556), true);
+    db.Add(CService("85.214.246.63", 5556, false), true);
   }
   do {
     for (int i=0; seeds[i] != ""; i++) {
@@ -420,6 +423,12 @@ int main(int argc, char **argv) {
   if (fDNS && !opts.mbox) {
     fprintf(stderr, "No e-mail address set. Please use -m.\n");
     exit(1);
+  }
+  if (opts.fDaemon) {
+    if (daemon(1, 0) == -1) {
+      perror("daemon");
+      exit(1);
+    }
   }
   FILE *f = fopen("dnsseed.dat","r");
   if (f) {
